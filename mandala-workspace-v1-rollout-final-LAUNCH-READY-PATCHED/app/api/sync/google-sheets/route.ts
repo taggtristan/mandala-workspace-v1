@@ -3,15 +3,6 @@ import { NextResponse } from "next/server";
 export async function GET() {
  const endpoint = "https://script.google.com/macros/s/AKfycbyjB9IS7iPaujhO2dwD-Hu_bXTPf8S10sAaX84Wu-edNiJqFRhP97EQE2n05w_z4WcKaA/exec";
 
-  if (!endpoint || endpoint === "not-configured") {
-    return NextResponse.json({
-      connected: false,
-      stage: "env",
-      error: "GOOGLE_APPS_SCRIPT_SYNC_URL is missing or not-configured",
-      hasEndpoint: Boolean(endpoint),
-    });
-  }
-
   try {
     const res = await fetch(endpoint.trim(), {
       method: "GET",
