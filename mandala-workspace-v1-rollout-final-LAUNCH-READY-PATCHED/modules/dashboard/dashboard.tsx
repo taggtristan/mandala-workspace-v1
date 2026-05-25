@@ -22,9 +22,6 @@ import {
   Receipt,
   BarChart3,
   Settings,
-  CheckCircle2,
-  Circle,
-  AlertTriangle,
   RefreshCw
 } from "lucide-react";
 
@@ -48,27 +45,6 @@ const navItems = [
   ["Settings", "/settings", Settings]
 ] as const;
 
-function formatDate(value: any) {
-  if (!value) return "TBD";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric"
-  });
-}
-
-function statusTone(status: any) {
-  const s = String(status || "").toLowerCase();
-
-  if (s.includes("complete")) return "green";
-  if (s.includes("risk") || s.includes("open")) return "red";
-  if (s.includes("progress") || s.includes("monitor")) return "orange";
-
-  return "slate";
-}
-
 type DashboardProject = {
   field?: string;
   value?: string;
@@ -76,14 +52,6 @@ type DashboardProject = {
 
 export function Dashboard() {
   const workspace = useWorkspaceData();
-
-  if (!workspace) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
-        Loading workspace...
-      </div>
-    );
-  }
 
   const workbook = workspace ?? {};
 
@@ -98,17 +66,20 @@ export function Dashboard() {
         project: {
           name:
             workbook.project?.find?.(
-              (x: DashboardProject) => x.field === "Project Name"
+              (x: DashboardProject) =>
+                x.field === "Project Name"
             )?.value || "Patineta Project Plan",
 
           type:
             workbook.project?.find?.(
-              (x: DashboardProject) => x.field === "Project Type"
+              (x: DashboardProject) =>
+                x.field === "Project Type"
             )?.value || "Project Plan",
 
           status:
             workbook.project?.find?.(
-              (x: DashboardProject) => x.field === "Status"
+              (x: DashboardProject) =>
+                x.field === "Status"
             )?.value || "Active",
         },
 
@@ -119,31 +90,35 @@ export function Dashboard() {
         events: [
           ...(workbook.events ?? []),
           ...(workbook.licensing ?? []),
-          ...(workbook.milestones ?? []),
+          ...(workbook.milestones ?? [])
         ],
 
-        workbookRows: livePatinetaRows,
+        workbookRows: livePatinetaRows
       }),
     [workbook]
   );
 
   const connected = Boolean(workspace);
 
-  const ganttRows = dashboard.ganttRows.slice(0, 8);
+  const ganttRows =
+    dashboard?.ganttRows?.slice?.(0, 8) ?? [];
 
   const agileRows = [
-    ...dashboard.agileBoard.inProgress,
-    ...dashboard.agileBoard.todo,
-    ...dashboard.agileBoard.done
+    ...(dashboard?.agileBoard?.inProgress ?? []),
+    ...(dashboard?.agileBoard?.todo ?? []),
+    ...(dashboard?.agileBoard?.done ?? [])
   ].slice(0, 7);
 
- const eventRows = dashboard.milestones?.slice?.(0, 5) ?? [];
+  const eventRows =
+    dashboard?.milestones?.slice?.(0, 5) ?? [];
 
-const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
+  const riskRows =
+    dashboard?.riskRows?.slice?.(0, 6) ?? [];
 
   return (
     <div className="min-h-screen overflow-hidden rounded-[2rem] bg-white text-slate-950 shadow-2xl ring-1 ring-slate-200">
       <div className="grid min-h-screen lg:grid-cols-[270px_1fr]">
+
         <aside className="bg-[#081827] text-white">
           <div className="flex items-center gap-3 px-5 py-5">
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-orange-400 text-orange-400">
@@ -151,7 +126,7 @@ const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
             </div>
 
             <div>
-              <div className="text-2xl font-bold leading-5 tracking-[0.16em]">
+              <div className="text-2xl font-bold tracking-[0.16em]">
                 MANDALA
               </div>
 
@@ -180,18 +155,20 @@ const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
         </aside>
 
         <main className="bg-slate-50 p-5">
-          <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+          <header className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">
                 Welcome back, Mandala
               </h1>
 
               <p className="text-sm text-slate-500">
-                {dashboard.projectStatus.name}
+                {dashboard?.projectStatus?.name || "Mandala Workspace"}
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+
               <div className="hidden items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 md:flex">
                 <Search className="h-4 w-4 text-slate-400" />
                 <span className="text-sm text-slate-500">
@@ -212,104 +189,90 @@ const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
                 <Plus className="h-4 w-4" />
                 New Project
               </a>
+
             </div>
           </header>
 
           <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+
             <Metric
               label="Project Status"
-              value={dashboard.projectStatus.status}
-              note={dashboard.projectStatus.type}
-              tone="green"
+              value={dashboard?.projectStatus?.status || "Active"}
             />
 
             <Metric
               label="Tasks in Progress"
-              value={String(dashboard.taskStats.inProgress)}
-              note={`${dashboard.taskStats.total} total tasks`}
-              tone="purple"
+              value={String(
+                dashboard?.taskStats?.inProgress ?? 0
+              )}
             />
 
             <Metric
               label="Completed Tasks"
-              value={String(dashboard.taskStats.completed)}
-              note={`${dashboard.taskStats.averageCompletion}% average complete`}
-              tone="green"
+              value={String(
+                dashboard?.taskStats?.completed ?? 0
+              )}
             />
 
             <Metric
               label="Risk Items"
-              value={String(dashboard.riskItems)}
-              note={`${riskRows.length} visible below`}
-              tone="orange"
+              value={String(
+                dashboard?.riskItems ?? 0
+              )}
             />
 
             <Metric
               label="Event Workstreams"
-              value={String(dashboard.eventWorkstreams)}
-              note="From workbook"
-              tone="purple"
+              value={String(
+                dashboard?.eventWorkstreams ?? 0
+              )}
             />
+
           </section>
 
-          <section className="mt-5 grid gap-4 xl:grid-cols-[1.35fr_0.72fr_0.65fr]">
+          <section className="mt-5 grid gap-4 xl:grid-cols-3">
+
             <Panel title="Project Overview">
               {ganttRows.length ? (
-                <div className="space-y-3">
-                  {ganttRows.map((task: any, index: number) => (
-                    <div
-                      key={task.id || index}
-                      className="rounded-lg border border-slate-200 bg-white p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <strong>
-                          {task.task || "Untitled Task"}
-                        </strong>
+                ganttRows.map((task: any, index: number) => (
+                  <div
+                    key={task.id || index}
+                    className="mb-3 rounded-lg border border-slate-200 bg-white p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong>
+                        {task.task || "Untitled Task"}
+                      </strong>
 
-                        <span className="text-xs text-slate-500">
-                          {task.status}
-                        </span>
-                      </div>
-
-                      <div className="mt-2 h-2 rounded bg-slate-100">
-                        <div
-                          className="h-2 rounded bg-blue-500"
-                          style={{
-                            width: `${Math.max(
-                              8,
-                              Number(task.percentComplete || 0)
-                            )}%`
-                          }}
-                        />
-                      </div>
+                      <span className="text-xs text-slate-500">
+                        {task.status || "Open"}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))
               ) : (
                 <EmptyState message="No Gantt rows available yet." />
               )}
             </Panel>
 
             <Panel title="Workbook Preview">
-              {dashboard.workbookPreview.rows.length ? (
-                <div className="space-y-2">
-                  {dashboard.workbookPreview.rows
-                    .slice(0, 6)
-                    .map((row: any, index: number) => (
-                      <div
-                        key={row.taskID || index}
-                        className="rounded-lg border border-slate-200 p-3"
-                      >
-                        <p className="font-medium">
-                          {row.taskName || row.task || row.name}
-                        </p>
+              {livePatinetaRows.length ? (
+                livePatinetaRows
+                  .slice(0, 6)
+                  .map((row: any, index: number) => (
+                    <div
+                      key={row.taskID || index}
+                      className="mb-3 rounded-lg border border-slate-200 p-3"
+                    >
+                      <p className="font-medium">
+                        {row.taskName || row.task || row.name}
+                      </p>
 
-                        <p className="text-xs text-slate-500">
-                          {row.owner} • {row.status}
-                        </p>
-                      </div>
-                    ))}
-                </div>
+                      <p className="text-xs text-slate-500">
+                        {row.owner} • {row.status}
+                      </p>
+                    </div>
+                  ))
               ) : (
                 <EmptyState message="No workbook rows available yet." />
               )}
@@ -336,7 +299,9 @@ const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
                 <EmptyState message="No risk rows available yet." />
               )}
             </Panel>
+
           </section>
+
         </main>
       </div>
     </div>
@@ -357,21 +322,19 @@ function SyncBadge({
       }`}
     >
       <RefreshCw className="h-3.5 w-3.5" />
-      {connected ? "Synced / Live" : "No live workbook"}
+      {connected
+        ? "Synced / Live"
+        : "No live workbook"}
     </div>
   );
 }
 
 function Metric({
   label,
-  value,
-  note,
-  tone
+  value
 }: {
   label: string;
   value: string;
-  note: string;
-  tone: "green" | "purple" | "orange";
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -381,10 +344,6 @@ function Metric({
 
       <div className="text-3xl font-bold">
         {value}
-      </div>
-
-      <div className="mt-2 text-xs text-slate-500">
-        {note}
       </div>
     </div>
   );
