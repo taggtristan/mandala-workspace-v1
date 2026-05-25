@@ -137,9 +137,9 @@ export function Dashboard() {
     ...dashboard.agileBoard.done
   ].slice(0, 7);
 
-  const eventRows = dashboard.events?.slice?.(0, 5) ?? [];
+ const eventRows = dashboard.milestones?.slice?.(0, 5) ?? [];
 
-const riskRows = dashboard.risks?.slice?.(0, 6) ?? [];
+const riskRows = dashboard.riskRows?.slice?.(0, 6) ?? [];
 
   return (
     <div className="min-h-screen overflow-hidden rounded-[2rem] bg-white text-slate-950 shadow-2xl ring-1 ring-slate-200">
