@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const endpoint = process.env.GOOGLE_APPS_SCRIPT_SYNC_URL;
+ const endpoint = "https://script.google.com/macros/s/AKfycbyjB9IS7iPaujhO2dwD-Hu_bXTPf8S10sAaX84Wu-edNiJqFRhP97EQE2n05w_z4WcKaA/exec";
 
   if (!endpoint || endpoint === "not-configured") {
     return NextResponse.json({
