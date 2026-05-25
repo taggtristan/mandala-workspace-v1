@@ -25,29 +25,12 @@ import {
   AlertTriangle,
   RefreshCw
 } from "lucide-react";
-
-type WorkbookData = {
-  projectSettings?: Array<Record<string, any>>;
-  tasks?: Array<Record<string, any>>;
-  milestones?: Array<Record<string, any>>;
-  risks?: Array<Record<string, any>>;
-  procurement?: Array<Record<string, any>>;
-  readiness?: Array<Record<string, any>>;
-  estimate?: Array<Record<string, any>>;
-  estimateExclusions?: Array<Record<string, any>>;
-  eventPlanning?: Array<Record<string, any>>;
-  eventVendors?: Array<Record<string, any>>;
-  licensing?: Array<Record<string, any>>;
-  connected?: boolean;
-  workbookId?: string;
-  workbookName?: string;
-  syncedAt?: string;
-};
+import { mapDashboardData, type LiveWorkbookData } from "@/lib/live-workbook-map";
 
 type SyncResponse = {
   connected: boolean;
   status?: number;
-  data?: WorkbookData;
+  data?: LiveWorkbookData;
   error?: string;
   stage?: string;
   syncedAt?: string;
@@ -71,16 +54,6 @@ const navItems = [
   ["Settings", "/settings", Settings]
 ] as const;
 
-function getSetting(settings: WorkbookData["projectSettings"], field: string, fallback = "") {
-  return settings?.find((item) => String(item.field || "").toLowerCase() === field.toLowerCase())?.value || fallback;
-}
-
-function percent(value: any) {
-  const n = Number(value || 0);
-  if (n <= 1) return Math.round(n * 100);
-  return Math.round(n);
-}
-
 function formatDate(value: any) {
   if (!value) return "TBD";
   const date = new Date(value);
@@ -91,8 +64,8 @@ function formatDate(value: any) {
 function statusTone(status: any) {
   const s = String(status || "").toLowerCase();
   if (s.includes("complete")) return "green";
-  if (s.includes("risk") || s.includes("open")) return "red";
-  if (s.includes("progress") || s.includes("monitor")) return "orange";
+  if (s.includes("risk") || s.includes("open") || s.includes("needed")) return "red";
+  if (s.includes("progress") || s.includes("monitor") || s.includes("planning") || s.includes("upcoming")) return "orange";
   return "slate";
 }
 
@@ -109,29 +82,28 @@ export function Dashboard() {
   }, []);
 
   const workbook = sync?.data || {};
-  const projectSettings = workbook.projectSettings || [];
-  const tasks = workbook.tasks || [];
-  const milestones = workbook.milestones || [];
-  const risks = workbook.risks || [];
-  const eventPlanning = workbook.eventPlanning || [];
-  const licensing = workbook.licensing || [];
+  const dashboard = useMemo(
+    () =>
+      mapDashboardData({
+        ...workbook,
+        events: workbook.eventPlanning || [],
+        workbookRows: workbook.tasks || [],
+        workbookName: workbook.workbookName,
+        syncedAt: workbook.syncedAt || sync?.syncedAt,
+      }),
+    [workbook, sync?.syncedAt]
+  );
 
-  const projectName = getSetting(projectSettings, "Project Name", "Mandala Workspace");
-  const client = getSetting(projectSettings, "Client / Partner", "Mandala Creative");
-  const currentPhase = getSetting(projectSettings, "Current Phase", "Operations");
-  const status = getSetting(projectSettings, "Status", sync?.connected ? "Live" : "Demo");
-
-  const activeTasks = tasks.filter((t) => String(t.status || "").toLowerCase().includes("progress")).length;
-  const completedTasks = tasks.filter((t) => String(t.status || "").toLowerCase().includes("complete")).length;
-  const atRisk = risks.filter((r) => ["open", "monitor"].includes(String(r.status || "").toLowerCase())).length;
-  const avgComplete = tasks.length ? Math.round(tasks.reduce((sum, task) => sum + percent(task.percentComplete), 0) / tasks.length) : 0;
-
-  const ganttRows = useMemo(() => {
-    const parentTasks = tasks.filter((task) => !task.parentID).slice(0, 8);
-    return parentTasks.length ? parentTasks : tasks.slice(0, 8);
-  }, [tasks]);
-
-  const workbookRows = tasks.slice(0, 10);
+  const connected = Boolean(sync?.connected && workbook.connected !== false);
+  const topGanttRows = dashboard.ganttRows.filter((row: any) => !row.original?.parentID).slice(0, 8);
+  const ganttRows = topGanttRows.length ? topGanttRows : dashboard.ganttRows.slice(0, 8);
+  const agileRows = [
+    ...dashboard.agileBoard.inProgress,
+    ...dashboard.agileBoard.todo,
+    ...dashboard.agileBoard.done
+  ].slice(0, 7);
+  const eventRows = dashboard.milestones.slice(0, 5);
+  const riskRows = dashboard.riskRows.slice(0, 6);
 
   return (
     <div className="min-h-screen overflow-hidden rounded-[2rem] bg-white text-slate-950 shadow-2xl ring-1 ring-slate-200">
@@ -163,7 +135,7 @@ export function Dashboard() {
               <div className="grid h-8 w-8 place-items-center rounded-full bg-slate-700">MC</div>
               <div>
                 <p className="font-medium text-white">Mandala Team</p>
-                <p className="text-xs">{sync?.connected ? "Live workbook" : "Sync pending"}</p>
+                <p className="text-xs">{connected ? "Live workbook" : "Connecting workbook"}</p>
               </div>
             </div>
           </div>
@@ -174,7 +146,7 @@ export function Dashboard() {
             <div>
               <h1 className="text-2xl font-bold">Welcome back, Mandala</h1>
               <p className="text-sm text-slate-500">
-                {projectName} • {client} • {currentPhase}
+                {dashboard.projectStatus.name} • {dashboard.projectStatus.client} • {dashboard.projectStatus.phase}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -184,7 +156,7 @@ export function Dashboard() {
               </div>
               <Bell className="h-5 w-5" />
               <MessageCircle className="h-5 w-5 text-orange-500" />
-              <SyncBadge loading={loading} connected={Boolean(sync?.connected)} syncedAt={workbook.syncedAt || sync?.syncedAt} />
+              <SyncBadge loading={loading} connected={connected} syncedAt={dashboard.workbookPreview.syncedAt} />
               <a href="/projects" className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white">
                 <Plus className="h-4 w-4" />
                 New Project
@@ -193,58 +165,62 @@ export function Dashboard() {
           </header>
 
           <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Metric label="Project Status" value={String(status)} note={sync?.connected ? "Live from workbook" : "Waiting for sync"} tone={statusTone(status) === "red" ? "orange" : "green"} />
-            <Metric label="Tasks in Progress" value={String(activeTasks)} note={`${tasks.length} total tasks`} tone="purple" />
-            <Metric label="Completed Tasks" value={String(completedTasks)} note={`${avgComplete}% average complete`} tone="green" />
-            <Metric label="Risk Items" value={String(atRisk)} note={`${risks.length} tracked risks`} tone="orange" />
-            <Metric label="Event Workstreams" value={String(eventPlanning.length)} note={`${licensing.length} licensing items`} tone="purple" />
+            <Metric label="Project Status" value={dashboard.projectStatus.status} note={dashboard.projectStatus.type} tone={statusTone(dashboard.projectStatus.status) === "red" ? "orange" : "green"} />
+            <Metric label="Tasks in Progress" value={String(dashboard.taskStats.inProgress)} note={`${dashboard.taskStats.total} total tasks`} tone="purple" />
+            <Metric label="Completed Tasks" value={String(dashboard.taskStats.completed)} note={`${dashboard.taskStats.averageCompletion}% average complete`} tone="green" />
+            <Metric label="Risk Items" value={String(dashboard.riskItems)} note={`${riskRows.length} visible below`} tone="orange" />
+            <Metric label="Event Workstreams" value={String(dashboard.eventWorkstreams)} note="From event + licensing sheets" tone="purple" />
           </section>
 
           <section className="mt-5 grid gap-4 xl:grid-cols-[1.35fr_0.72fr_0.65fr]">
             <Panel title="Project Overview">
-              <div className="overflow-x-auto">
-                <div className="min-w-[720px]">
-                  {ganttRows.map((task, index) => (
-                    <GanttRow key={task.taskID || task.taskName || index} task={task} index={index} />
-                  ))}
+              {ganttRows.length ? (
+                <div className="overflow-x-auto">
+                  <div className="min-w-[720px]">
+                    {ganttRows.map((task: any, index: number) => (
+                      <GanttRow key={task.id || index} task={task} index={index} />
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <EmptyState message="No Gantt rows available yet." />
+              )}
               <a href="/gantt" className="mt-3 block text-right text-sm font-medium text-blue-700">View full Gantt →</a>
             </Panel>
 
             <Panel title="My Tasks (Agile)">
               <div className="mb-3 flex gap-4 border-b text-xs font-medium">
-                <span className="border-b-2 border-blue-600 pb-2">To Do</span>
-                <span className="pb-2 text-slate-500">In Progress ({activeTasks})</span>
-                <span className="pb-2 text-slate-500">Done ({completedTasks})</span>
+                <span className="border-b-2 border-blue-600 pb-2">To Do ({dashboard.agileBoard.todo.length})</span>
+                <span className="pb-2 text-slate-500">In Progress ({dashboard.taskStats.inProgress})</span>
+                <span className="pb-2 text-slate-500">Done ({dashboard.taskStats.completed})</span>
               </div>
-              {tasks.slice(0, 7).map((task, index) => (
-                <TaskRow key={task.taskID || index} task={task} />
-              ))}
+              {agileRows.length ? agileRows.map((task: any, index: number) => (
+                <TaskRow key={task.taskID || task.id || index} task={task} />
+              )) : <EmptyState message="No task rows available yet." />}
               <a href="/tasks" className="mt-3 block text-right text-sm font-medium text-blue-700">View all tasks →</a>
             </Panel>
 
             <Panel title="Upcoming Events">
-              {(eventPlanning.length ? eventPlanning : milestones).slice(0, 5).map((item, index) => (
-                <EventRow key={item.workstream || item.milestone || index} item={item} />
-              ))}
+              {eventRows.length ? eventRows.map((item: any, index: number) => (
+                <EventRow key={item.id || item.title || index} item={item} />
+              )) : <EmptyState message="No event or milestone rows available yet." />}
               <a href="/calendar" className="mt-3 block text-right text-sm font-medium text-blue-700">View calendar →</a>
             </Panel>
           </section>
 
           <section className="mt-5 grid gap-4 xl:grid-cols-[1fr_0.65fr]">
-            <WorkbookPreview rows={workbookRows} connected={Boolean(sync?.connected)} workbookName={workbook.workbookName} />
+            <WorkbookPreview dashboard={dashboard} connected={connected} />
             <Panel title="Risk Register">
-              {risks.slice(0, 6).map((risk, index) => (
-                <RiskRow key={risk.issueRisk || index} risk={risk} />
-              ))}
+              {riskRows.length ? riskRows.map((risk: any, index: number) => (
+                <RiskRow key={risk.issueRisk || risk.taskName || index} risk={risk} />
+              )) : <EmptyState message="No risk rows available yet." />}
               <a href="/reports" className="mt-3 block text-right text-sm font-medium text-blue-700">View risk report →</a>
             </Panel>
           </section>
 
-          {sync?.connected === false && (
+          {!connected && !loading && (
             <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
-              Workbook connection issue: {sync.error || sync.stage || "Unable to load workbook data."}
+              Workbook connection issue: {sync?.error || sync?.stage || "Unable to load workbook data."}
             </div>
           )}
         </main>
@@ -257,7 +233,7 @@ function SyncBadge({ loading, connected, syncedAt }: { loading: boolean; connect
   return (
     <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${connected ? "bg-green-50 text-green-700" : "bg-orange-50 text-orange-700"}`}>
       <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-      {loading ? "Syncing..." : connected ? `Live ${syncedAt ? "• " + formatDate(syncedAt) : ""}` : "Demo mode"}
+      {loading ? "Syncing..." : connected ? `Synced / Live${syncedAt ? " • " + formatDate(syncedAt) : ""}` : "No live workbook"}
     </div>
   );
 }
@@ -287,11 +263,11 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 function GanttRow({ task, index }: { task: Record<string, any>; index: number }) {
   const colors = ["bg-green-500", "bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-teal-500", "bg-amber-400"];
-  const pct = Math.max(6, Math.min(92, percent(task.percentComplete) || 8));
+  const pct = Math.max(6, Math.min(92, Number(task.percentComplete || 0)));
   const left = Math.min(70, 8 + index * 8);
   return (
     <div className="grid grid-cols-[210px_90px_1fr] items-center border-b border-slate-100 py-3 text-xs">
-      <strong className="truncate">{task.taskName || "Untitled Task"}</strong>
+      <strong className="truncate">{task.task || "Untitled Task"}</strong>
       <span className="truncate text-slate-500">{task.phase || task.status || "Phase"}</span>
       <div className="relative h-5 rounded bg-slate-100">
         <span className={`absolute top-1 h-3 rounded ${colors[index % colors.length]}`} style={{ left: `${left}%`, width: `${Math.max(10, pct / 2)}%` }} />
@@ -308,7 +284,7 @@ function TaskRow({ task }: { task: Record<string, any> }) {
     <div className="flex items-center gap-3 border-b border-slate-100 py-3 text-sm">
       <Circle className="h-4 w-4 text-slate-400" />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium">{task.taskName || "Untitled Task"}</p>
+        <p className="truncate font-medium">{task.taskName || task.task || "Untitled Task"}</p>
         <p className="truncate text-xs text-slate-500">{task.owner || "Unassigned"} • {task.phase || "No phase"}</p>
       </div>
       <span className={`rounded-full px-2 py-1 text-xs ${
@@ -324,7 +300,7 @@ function TaskRow({ task }: { task: Record<string, any> }) {
 }
 
 function EventRow({ item }: { item: Record<string, any> }) {
-  const date = item.endDate || item.dueDate || item.startDate;
+  const date = item.dueDate || item.endDate || item.startDate;
   const d = date ? new Date(date) : null;
   const month = d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "TBD";
   const day = d && !Number.isNaN(d.getTime()) ? d.getDate() : "--";
@@ -335,7 +311,7 @@ function EventRow({ item }: { item: Record<string, any> }) {
         <p className="text-lg font-bold">{day}</p>
       </div>
       <div>
-        <p className="text-sm font-semibold">{item.workstream || item.milestone || item.requirement || "Upcoming item"}</p>
+        <p className="text-sm font-semibold">{item.title || item.milestone || item.workstream || item.requirement || "Upcoming item"}</p>
         <p className="text-xs text-slate-500">{item.owner || item.group || "Mandala"} • {item.status || "Planning"}</p>
         <p className="text-xs">{item.priority || item.category || ""}</p>
       </div>
@@ -346,47 +322,55 @@ function EventRow({ item }: { item: Record<string, any> }) {
 function RiskRow({ risk }: { risk: Record<string, any> }) {
   return (
     <div className="border-b border-slate-100 py-3 text-sm">
-      <p className="font-medium">{risk.issueRisk || "Risk item"}</p>
+      <p className="font-medium">{risk.issueRisk || risk.taskName || risk.workstream || "Risk item"}</p>
       <p className="text-xs text-slate-500">{risk.owner || "Unassigned"} • {risk.status || "Open"} • Score {risk.score || "-"}</p>
     </div>
   );
 }
 
-function WorkbookPreview({ rows, connected, workbookName }: { rows: Array<Record<string, any>>; connected: boolean; workbookName?: string }) {
+function WorkbookPreview({ dashboard, connected }: { dashboard: ReturnType<typeof mapDashboardData>; connected: boolean }) {
+  const rows = dashboard.workbookPreview.rows.slice(0, 10);
   const headers = ["Task ID", "Task Name", "Owner", "Status", "Phase", "Start Date", "End Date", "% Complete", "Dependency"];
+
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <div>
           <h2 className="font-bold">MANDALA PROJECT MASTER WORKBOOK</h2>
           <p className="text-xs text-slate-500">
-            {connected ? `Live spreadsheet sync • ${workbookName || "Google Sheets"}` : "Spreadsheet sync preview • waiting for live data"}
+            {connected && dashboard.workbookPreview.synced
+              ? `Synced / Live • ${dashboard.workbookPreview.workbookName || "Google Sheets"}`
+              : "No live workbook rows available"}
           </p>
         </div>
         <a href="/workbooks" className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white">Open Workbook</a>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-[1120px] border-collapse text-xs">
-          <thead>
-            <tr>{headers.map((h) => <th key={h} className="border border-slate-200 bg-green-100 px-2 py-2 text-left font-bold uppercase">{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.taskID || index}>
-                <td className="border border-slate-200 px-2 py-2">{row.taskID}</td>
-                <td className="border border-slate-200 px-2 py-2">{row.taskName}</td>
-                <td className="border border-slate-200 px-2 py-2">{row.owner}</td>
-                <td className="border border-slate-200 px-2 py-2">{row.status}</td>
-                <td className="border border-slate-200 px-2 py-2">{row.phase}</td>
-                <td className="border border-slate-200 px-2 py-2">{formatDate(row.startDate)}</td>
-                <td className="border border-slate-200 px-2 py-2">{formatDate(row.endDate)}</td>
-                <td className="border border-slate-200 px-2 py-2">{percent(row.percentComplete)}%</td>
-                <td className="border border-slate-200 px-2 py-2">{row.dependencyID || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {rows.length ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-[1120px] border-collapse text-xs">
+            <thead>
+              <tr>{headers.map((h) => <th key={h} className="border border-slate-200 bg-green-100 px-2 py-2 text-left font-bold uppercase">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((row: any, index: number) => (
+                <tr key={row.taskID || row.id || index}>
+                  <td className="border border-slate-200 px-2 py-2">{row.taskID || row.id}</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.taskName || row.task || row.name}</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.owner}</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.status}</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.phase}</td>
+                  <td className="border border-slate-200 px-2 py-2">{formatDate(row.startDate || row.start)}</td>
+                  <td className="border border-slate-200 px-2 py-2">{formatDate(row.endDate || row.end || row.dueDate)}</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.percentComplete !== undefined ? Math.round(Number(row.percentComplete) <= 1 ? Number(row.percentComplete) * 100 : Number(row.percentComplete)) : "—"}%</td>
+                  <td className="border border-slate-200 px-2 py-2">{row.dependencyID || row.dependency || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState message="No workbook rows available yet." />
+      )}
       <div className="flex gap-1 overflow-x-auto border-t bg-slate-50 px-4 py-2 text-xs">
         {["PROJECT MASTER", "TASK TRACKER", "GANTT", "RESOURCE PLAN", "BUDGET TRACKER", "RISK LOG", "EVENT PLANNER", "PROCUREMENT", "MURAL ESTIMATES", "DASHBOARD"].map((tab, i) => (
           <span key={tab} className={`whitespace-nowrap rounded px-4 py-2 ${i === 0 ? "bg-blue-100 text-blue-700" : "bg-white"}`}>{tab}</span>
@@ -394,6 +378,10 @@ function WorkbookPreview({ rows, connected, workbookName }: { rows: Array<Record
       </div>
     </section>
   );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">{message}</div>;
 }
 
 export default Dashboard;
