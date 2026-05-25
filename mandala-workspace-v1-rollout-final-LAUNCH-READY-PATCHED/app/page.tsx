@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { brand, projects } from "@/data/mandala";
 import { Dashboard } from "@/modules/dashboard/dashboard";
 import { ProjectTemplates } from "@/modules/projects/project-templates";
@@ -31,6 +32,21 @@ export default function Home() {
           </div>
         </header>
 
+
+        <section className="mt-6 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+          {[
+            ["Dashboard", "/dashboard"],
+            ["Projects", "/projects"],
+            ["Tasks", "/tasks"],
+            ["Gantt", "/gantt"],
+            ["Events", "/events"],
+            ["Workbook", "/workbooks"]
+          ].map(([label, href]) => (
+            <Link key={href} href={href} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-semibold shadow-sm ring-1 ring-mandala-sand hover:bg-mandala-charcoal hover:text-white">
+              {label}
+            </Link>
+          ))}
+        </section>
         <section className="mt-6"><Dashboard /></section>
         <section className="mt-6"><ProjectTemplates /></section>
 

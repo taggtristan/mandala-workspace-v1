@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const endpoint = process.env.GOOGLE_APPS_SCRIPT_SYNC_URL;
-  if (!endpoint) {
+  if (!endpoint || endpoint === "not-configured") {
     return NextResponse.json({
       connected: false,
       message: "GOOGLE_APPS_SCRIPT_SYNC_URL is not configured.",
