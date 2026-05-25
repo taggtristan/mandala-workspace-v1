@@ -1,0 +1,1 @@
+export default function Page(){ return <main className="min-h-screen bg-mandala-cream p-6"><div className="rounded-3xl bg-white p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="mt-2 text-stone-600">Workspace settings, integrations, and permissions.</p></div></main>; }
