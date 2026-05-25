@@ -94,7 +94,7 @@ export function Dashboard() {
     [workbook, sync?.syncedAt]
   );
 
-  const connected = Boolean(sync?.connected && workbook.connected !== false);
+  const connected = Boolean(sync?.connected);
   const topGanttRows = dashboard.ganttRows.filter((row: any) => !row.original?.parentID).slice(0, 8);
   const ganttRows = topGanttRows.length ? topGanttRows : dashboard.ganttRows.slice(0, 8);
   const agileRows = [
