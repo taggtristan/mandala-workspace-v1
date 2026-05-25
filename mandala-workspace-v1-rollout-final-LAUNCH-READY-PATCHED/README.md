@@ -27,3 +27,4 @@ npm run dev
 
 ## Deploy on Vercel
 Upload this folder to GitHub, then import it into Vercel as a Next.js project.
+deployment refresh
