@@ -17,7 +17,7 @@ type SyncResponse = {
   syncedAt?: string;
 };
 
-export default function Dashboard() {
+export function Dashboard() {
   const [sync, setSync] = useState<SyncResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -126,3 +126,4 @@ function Row({ title, meta }: { title: string; meta: string }) {
     </div>
   );
 }
+export default Dashboard;
