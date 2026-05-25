@@ -81,18 +81,19 @@ export function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const workbook = sync?.data || {};
-  const dashboard = useMemo(
-    () =>
-      mapDashboardData({
-        ...workbook,
-        events: workbook.eventPlanning || [],
-        workbookRows: workbook.tasks || [],
-        workbookName: workbook.workbookName,
-        syncedAt: workbook.syncedAt || sync?.syncedAt,
-      }),
-    [workbook, sync?.syncedAt]
-  );
+const workbook = sync?.data ?? {};
+
+const dashboard = useMemo(
+  () =>
+    mapDashboardData({
+      project: workbook.projectSettings ?? [],
+      tasks: workbook.tasks ?? [],
+      risks: workbook.risks ?? [],
+      events: workbook.eventPlanning ?? [],
+      workbookRows: workbook.tasks ?? [],
+    }),
+  [workbook]
+);
 
   const connected = Boolean(sync?.connected);
   const topGanttRows = dashboard.ganttRows.filter((row: any) => !row.original?.parentID).slice(0, 8);
