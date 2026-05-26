@@ -1,31 +1,50 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createWorkspaceStore } from "@/lib/live-workspace-store";
+import {
+  createEmptyWorkspaceStore,
+  createWorkspaceStore,
+  type WorkspaceStore,
+} from "@/lib/live-workspace-store";
 
-export function useWorkspaceData() {
-  const [workspace, setWorkspace] = useState<any>(null);
+export function useWorkspaceData(): WorkspaceStore {
+  const [workspace, setWorkspace] = useState<WorkspaceStore>(() =>
+    createEmptyWorkspaceStore({ loading: true })
+  );
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function loadWorkspace() {
       try {
         const res = await fetch("/api/sync/google-sheets", {
           cache: "no-store",
+          signal: controller.signal,
         });
 
         const sync = await res.json();
 
-        const workbook = sync?.data ?? {};
-
-        const normalized = createWorkspaceStore(workbook);
-
-        setWorkspace(normalized);
+        setWorkspace(
+          createWorkspaceStore(sync, {
+            loading: false,
+            error: res.ok ? undefined : sync?.error,
+          })
+        );
       } catch (error) {
-        console.error("Workspace sync failed:", error);
+        if (controller.signal.aborted) return;
+
+        setWorkspace(
+          createWorkspaceStore(undefined, {
+            loading: false,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        );
       }
     }
 
     loadWorkspace();
+
+    return () => controller.abort();
   }, []);
 
   return workspace;

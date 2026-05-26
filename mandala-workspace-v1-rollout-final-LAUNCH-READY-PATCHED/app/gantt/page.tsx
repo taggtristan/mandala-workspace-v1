@@ -1,2 +1,5 @@
-import { Dashboard } from "@/modules/dashboard/dashboard";
-export default function Page(){ return <Dashboard />; }
+import { WorkspaceDashboard } from "@/modules/dashboard/workspace-dashboard";
+
+export default function Page() {
+  return <WorkspaceDashboard />;
+}

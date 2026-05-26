@@ -1,7 +1,5 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { useWorkspaceData } from "@/hooks/use-workspace-data";
+import type { WorkspaceStore } from "@/lib/live-workspace-store";
 import {
   Calendar,
   Bell,
@@ -41,19 +39,8 @@ const navItems = [
   ["Settings", "/settings", Settings]
 ] as const;
 
-export function Dashboard() {
-  const workspaceResult = useWorkspaceData() as any;
-  const workspace = workspaceResult?.data ?? workspaceResult;
-
-  if (!workspace) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-600">
-        Loading workspace...
-      </div>
-    );
-  }
-
-  const dashboard = workspace.dashboard ?? {};
+export function Dashboard({ workspace }: { workspace: WorkspaceStore }) {
+  const dashboard = workspace.dashboard;
   const ganttRows = dashboard.ganttRows?.slice(0, 8) ?? [];
   const workbookRows = dashboard.workbookPreviewRows?.slice(0, 8) ?? [];
   const riskRows = workspace.riskRows?.slice(0, 6) ?? [];
@@ -112,7 +99,7 @@ export function Dashboard() {
               </div>
               <Bell className="h-5 w-5" />
               <MessageCircle className="h-5 w-5 text-orange-500" />
-              <SyncBadge connected={Boolean(workspace.isSynced)} />
+              <SyncBadge loading={workspace.loading} connected={Boolean(workspace.isSynced)} />
               <a
                 href="/projects"
                 className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white"
@@ -214,21 +201,27 @@ export function Dashboard() {
               )}
             </Panel>
           </section>
+
+          {!workspace.connected && !workspace.loading && (
+            <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-900">
+              Workbook connection issue: {workspace.error || workspace.stage || "Unable to load workbook data."}
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-function SyncBadge({ connected }: { connected: boolean }) {
+function SyncBadge({ loading, connected }: { loading: boolean; connected: boolean }) {
   return (
     <div
       className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
         connected ? "bg-green-50 text-green-700" : "bg-orange-50 text-orange-700"
       }`}
     >
-      <RefreshCw className="h-3.5 w-3.5" />
-      {connected ? "Synced / Live" : "No live workbook"}
+      <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+      {loading ? "Syncing..." : connected ? "Synced / Live" : "No live workbook"}
     </div>
   );
 }

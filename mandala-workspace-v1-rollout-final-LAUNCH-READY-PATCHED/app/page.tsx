@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { brand, projects } from "@/data/mandala";
-import { Dashboard } from "@/modules/dashboard/dashboard";
+import { WorkspaceDashboard } from "@/modules/dashboard/workspace-dashboard";
 import { ProjectTemplates } from "@/modules/projects/project-templates";
 import { TaskBoard } from "@/modules/tasks/task-board";
 import { MuralEstimator } from "@/modules/estimating/mural-estimator";
@@ -47,7 +47,7 @@ export default function Home() {
             </Link>
           ))}
         </section>
-        <section className="mt-6"><Dashboard /></section>
+        <section className="mt-6"><WorkspaceDashboard /></section>
         <section className="mt-6"><ProjectTemplates /></section>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">

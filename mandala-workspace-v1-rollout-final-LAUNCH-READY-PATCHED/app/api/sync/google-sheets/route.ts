@@ -20,12 +20,15 @@ export async function GET() {
 
     try {
       const data = JSON.parse(text);
-      return NextResponse.json({
-        connected: Boolean(data.connected ?? true),
-        status: res.status,
-        data,
-        syncedAt: new Date().toISOString()
-      });
+      return NextResponse.json(
+        {
+          connected: res.ok && Boolean(data.connected ?? true),
+          status: res.status,
+          data,
+          syncedAt: data.syncedAt || new Date().toISOString()
+        },
+        { status: res.ok ? 200 : 502 }
+      );
     } catch {
       return NextResponse.json(
         {
